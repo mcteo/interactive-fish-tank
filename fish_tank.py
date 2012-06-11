@@ -37,8 +37,7 @@ Created on Jun 7, 2012
 
 """
 
-from SimpleCV import Kinect, Image, HaarCascade
-from math import abs
+from SimpleCV import Display, Image, HaarCascade, Kinect
 import time, threading
 
 lock = threading.RLock()
@@ -54,7 +53,7 @@ class FaceListUpdater(threading.Thread):
         while self.isAlive():
             with lock:
                 self.image = self.camera.getImage().flipHorizontal()
-                self.faces = self.image.findHaarFeatures(hc)
+                self.faces = self.image.findHaarFeatures(HaarCascade('face2.xml'))
 
 class Tank():
     def __init__(self, cam):
@@ -66,6 +65,13 @@ class Tank():
         self.face_updater = FaceListUpdater(self.camera, self.camera_image, self.face_array)
         self.face_updater.start()
 
+    def __del__(self):
+        self.face_updater.join()
+
+    def update(self):
+        self.update_fish()
+        self.update_background()
+
     def update_fish(self):
         for fish in self.fish_array:
             fish.update()
@@ -73,10 +79,6 @@ class Tank():
     def update_background(self):
         if self.water is not None:
             self.water.update()
-
-    def update(self):
-        update_fish()
-        update_background()
 
     def draw(self, canvas):
         for fish in self.fish_array:
@@ -118,7 +120,7 @@ class Fish():
             self.last_position = self.position
 
     def draw(self, canvas):
-        pass
+        self.draw_image.save(canvas)
 
 class Water():
     def __init__(self):
@@ -132,8 +134,20 @@ class Water():
         pass
 
 
+if __name__ == '__main__':
+
+    #disp = Display(flags = pg.FULLSCREEN)
+    disp = Display()
+
+    cam = Kinect()
+    fishtank = Tank(cam)
+
+    while True:
+        fishtank.update()
+        fishtank.draw(disp)
 
 
+"""
 class tfish():
     def __init__(self, image):
         self.image = scv.Image(image)
@@ -192,13 +206,13 @@ if __name__ == '__main__':
     water_time = 0
 
     while not disp.isDone():
-        """
+        ""
             depth = cam.getDepth()
             
             if disp.mouseLeft:
                 break
             depth.save(disp)
-        """
+        ""
             
         image = cam.getImage().flipHorizontal()#.scale(320,240)
         faces = image.findHaarFeatures(hc) # load in trained face file
@@ -271,4 +285,5 @@ if __name__ == '__main__':
         #img.drawCircle(ctr, rad, color, thickness)
 
 print "Exiting... Freed Kinect Ownership"
-    
+"""
+
