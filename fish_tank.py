@@ -37,38 +37,59 @@ Created on Jun 7, 2012
 
 """
 
-from SimpleCV import Display, Image, HaarCascade, Kinect
+from SimpleCV import Display, Image, HaarCascade, Kinect, pg
 import time, threading
 
 lock = threading.RLock()
 
+
 class FaceListUpdater(threading.Thread):
-    def __init__(self, cam, img, array):
-        self.image = img
-        self.camera = cam
-        self.faces = array
+    def __init__(self, parent):
+        self.parent = parent
         threading.Thread.__init__(self)
     
     def run(self):
-        while self.isAlive():
+        while self.parent.running == True:
             with lock:
-                self.image = self.camera.getImage().flipHorizontal()
-                self.faces = self.image.findHaarFeatures(HaarCascade('face2.xml'))
-
+                self.parent.camera_image = self.parent.camera.getImage().flipHorizontal()
+                self.parent.face_array = self.parent.camera_image.findHaarFeatures(HaarCascade('face2.xml'))
+            print "*************Thread Func***********"
+            print "* cam =", self.parent.camera
+            print "* cam_img =", self.parent.camera_image
+            print "* arr =", self.parent.face_array
+            print "***********************************"
+ 
 class Tank():
     def __init__(self, cam):
+        self.running = True
         self.camera = cam
         self.camera_image = None
         self.fish_array = []
-        self.water = None
         self.face_array = []
-        self.face_updater = FaceListUpdater(self.camera, self.camera_image, self.face_array)
+        self.face_updater = FaceListUpdater(self)
         self.face_updater.start()
+#        self._test_run(self)
+        print "**************Main Func************"
+        print "* cam =", self.camera
+        print "* cam_img =", self.camera_image
+        print "* arr =", self.face_array
+        print "***********************************"
+        self.water = Water(self) 
 
     def __del__(self):
+        print "*** DELETING ***"
+        self.running = False
         self.face_updater.join()
 
+    def _test_run(self, parent):
+        print "calling camera methods..."
+        with lock:
+            parent.camera_image = parent.camera.getImage().flipHorizontal()
+            parent.face_array = parent.camera_image.resize(w=320).findHaarFeatures(HaarCascade('face2.xml'))
+            print "updating camera", parent.camera_image
+
     def update(self):
+        #self._test_run(self)
         self.update_fish()
         self.update_background()
 
@@ -81,14 +102,18 @@ class Tank():
             self.water.update()
 
     def draw(self, canvas):
+        if self.water is not None:
+            self.water.draw(canvas)
+        print "background should be drawn now"
+        
         for fish in self.fish_array:
             fish.draw(canvas)
 
 class Fish():
     def __init__(self, image_url):
-        self.position = (-1, -1)
-        self.last_position = (-1, -1)
-        self.draw_position = (-1, -1)
+        self.position = (0, 0)
+        self.last_position = (0, 0)
+        self.draw_position = (0, 0)
         self.direction = "left"
         self.orig_image = Image(image_url)
         self.draw_image = None
@@ -123,28 +148,54 @@ class Fish():
         self.draw_image.save(canvas)
 
 class Water():
-    def __init__(self):
-        self.position = (-1, -1)
-        self.draw_image = None
+    def __init__(self, parent):
+        self.position = (0, 0)
+        self.draw_images = []
+        self.parent = parent
+
+    def assign(self, image):
+        print "Assigned", type(image), "to Water"
+        self.draw_images.append(image)
 
     def update(self):
+        """
+        print "calling camera methods..."
+        print "*************Thread Func***********"
+        print "* cam =", cam
+        print "* cam_img =", img[0]
+        print "* arr =", array[0]
+        print "***********************************"
+        """
         pass
 
-    def draw(self):
-        pass
-
+    def draw(self, canvas):
+        with lock:
+            self.parent.camera_image.save(canvas)
+        for image in self.draw_images:
+            print image
+            if image is not None:
+                with lock:
+                    image.save(canvas)
 
 if __name__ == '__main__':
 
     #disp = Display(flags = pg.FULLSCREEN)
     disp = Display()
-
     cam = Kinect()
-    fishtank = Tank(cam)
+    time.sleep(0.05) 
 
-    while True:
+    fishtank = Tank(cam)
+    print "Everything should be initalised..."
+    
+    while not disp.isDone():
+        print "Looping..."
+        if disp.mouseLeft:
+            fishtank.running = False
+            break
         fishtank.update()
         fishtank.draw(disp)
+        #time.sleep(0.05)
+        #time.sleep(1)
 
 
 """
@@ -277,7 +328,7 @@ if __name__ == '__main__':
                     image.drawText("No mouths detected :O", 20, 20, scv.Color.RED, 20)
 
         image.save(disp) #display the image
-        time.sleep(0.01) # Let the program sleep for 1 millisecond so the comp
+        #time.sleep(0.01) # Let the program sleep for 1 millisecond so the comp
 
         #findHaarFeatures(self, cascade,scale factor, min neighbors, use canny)
         #img.upload(dest, api key, api secret, verbose)
