@@ -69,13 +69,14 @@ class Tank():
         self.face_array = []
         self.face_updater = FaceListUpdater(self, 'face2.xml')
         self.face_updater.start()
-#        self._test_run(self)
+#       self._test_run(self)
         print "**************Main Func************"
         print "* cam =", self.camera
         print "* cam_img =", self.camera_image
         print "* arr =", self.face_array
         print "***********************************"
         self.water = Water(self) 
+        self.canvas = self.camera.getImage().copy()
 
     def __del__(self):
         print "*** DELETING ***"
@@ -104,24 +105,23 @@ class Tank():
 
     def draw(self, canvas):
         if self.water is not None:
-            self.water.draw(canvas)
-        print "background should be drawn now"
-        
+            self.water.draw(self)
         for fish in self.fish_array:
-            fish.draw(canvas)
+            fish.draw(self)
+        self.canvas.save(canvas)
 
 class Fish():
     def __init__(self, image_url):
-        self.position = (0, 0)
+        self.position = (10, 10)
         self.last_position = (0, 0)
         self.draw_position = (0, 0)
         self.direction = "left"
         self.orig_image = Image(image_url)
-        self.draw_image = None
+        self.draw_image = self.orig_image.copy()
 
     def update(self):
         self.update_dir()
-        self.draw_image = self.draw_image.resize()
+        self.draw_image = self.draw_image#.resize()
 
         if self.direction == "left":
             self.draw_position = self.position
@@ -145,9 +145,12 @@ class Fish():
                 self.draw_image = self.orig_image.copy()
             self.last_position = self.position
 
-    def draw(self, canvas):
-        self.draw_image.save(canvas)
-
+    def draw(self, parent):
+        #self.draw_image.save(canvas)
+        print self.draw_image
+        print self.draw_position
+        parent.canvas = parent.canvas.blit(self.draw_image, pos=self.draw_position)
+ 
 class Water():
     def __init__(self, parent):
         self.position = (0, 0)
@@ -169,11 +172,9 @@ class Water():
         """
         pass
 
-    def draw(self, canvas):
-        with lock:
-            self.parent.camera_image.save(canvas)
+    def draw(self, parent):
+        parent.canvas = parent.canvas.blit(parent.camera_image, pos=self.position)
         for image in self.draw_images:
-            print image
             if image is not None:
                 with lock:
                     image.save(canvas)
@@ -186,8 +187,10 @@ if __name__ == '__main__':
     time.sleep(0.05) 
 
     fishtank = Tank(cam)
+    fish = Fish("images/fish1.png")
+    fishtank.fish_array.append(fish)
+
     print "Everything should be initalised..."
-    
     while not disp.isDone():
         print "Looping..."
         if disp.mouseLeft:
