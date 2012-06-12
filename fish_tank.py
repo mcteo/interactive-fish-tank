@@ -44,15 +44,16 @@ lock = threading.RLock()
 
 
 class FaceListUpdater(threading.Thread):
-    def __init__(self, parent):
+    def __init__(self, parent, which):
         self.parent = parent
+        self.haar = HaarCascade(which)
         threading.Thread.__init__(self)
     
     def run(self):
         while self.parent.running == True:
             with lock:
                 self.parent.camera_image = self.parent.camera.getImage().flipHorizontal()
-                self.parent.face_array = self.parent.camera_image.findHaarFeatures(HaarCascade('face2.xml'))
+                self.parent.face_array = self.parent.camera_image.resize(w=320).findHaarFeatures(self.haar)
             print "*************Thread Func***********"
             print "* cam =", self.parent.camera
             print "* cam_img =", self.parent.camera_image
@@ -66,7 +67,7 @@ class Tank():
         self.camera_image = None
         self.fish_array = []
         self.face_array = []
-        self.face_updater = FaceListUpdater(self)
+        self.face_updater = FaceListUpdater(self, 'face2.xml')
         self.face_updater.start()
 #        self._test_run(self)
         print "**************Main Func************"
