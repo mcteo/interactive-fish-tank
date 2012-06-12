@@ -39,27 +39,38 @@ Created on Jun 7, 2012
 
 from SimpleCV import Display, Image, HaarCascade, Kinect, pg
 import time, threading
+from multiprocessing import Process
 
 lock = threading.RLock()
 
 
 class FaceListUpdater(threading.Thread):
-    def __init__(self, parent, which):
+    def __init__(self, parent):
         self.parent = parent
-        self.haar = HaarCascade(which)
         threading.Thread.__init__(self)
     
     def run(self):
         while self.parent.running == True:
             with lock:
                 self.parent.camera_image = self.parent.camera.getImage().flipHorizontal()
-                self.parent.face_array = self.parent.camera_image.resize(w=320).findHaarFeatures(self.haar)
+                self.parent.face_array = self.parent.camera_image.findHaarFeatures(HaarCascade('face2.xml'))
             print "*************Thread Func***********"
             print "* cam =", self.parent.camera
             print "* cam_img =", self.parent.camera_image
             print "* arr =", self.parent.face_array
             print "***********************************"
- 
+            
+def prun(parent):
+    while parent.running == True:
+        with lock:
+            parent.camera_image = parent.camera.getImage().flipHorizontal()
+            parent.face_array = parent.camera_image.findHaarFeatures(HaarCascade('face2.xml'))
+        print "*************Thread Func***********"
+        print "* cam =", parent.camera
+        print "* cam_img =", parent.camera_image
+        print "* arr =", parent.face_array
+        print "***********************************"
+
 class Tank():
     def __init__(self, cam):
         self.running = True
@@ -67,7 +78,8 @@ class Tank():
         self.camera_image = None
         self.fish_array = []
         self.face_array = []
-        self.face_updater = FaceListUpdater(self, 'face2.xml')
+#        self.face_updater = FaceListUpdater(self)
+        self.face_updater = Process(target=prun, args=(self,))
         self.face_updater.start()
 #        self._test_run(self)
         print "**************Main Func************"
