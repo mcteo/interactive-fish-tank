@@ -96,8 +96,15 @@ class Tank():
         self.update_background()
 
     def update_fish(self):
-        for fish in self.fish_array:
-            fish.update()
+        if self.face_array is not None:
+            diff = len(self.face_array) - len(self.fish_array)
+            if diff > 0:
+                for dif in range(diff):
+                    self.fish_array.append(Fish("images/fish1.png", "images/alpha_fish.png"))
+        
+            for index in range(len(self.face_array)):
+                face = self.face_array[index]
+                self.fish_array[index].update(face.x, face.y, face.width(), face.height())
     
     def update_background(self):
         if self.water is not None:
@@ -111,22 +118,28 @@ class Tank():
         self.canvas.save(canvas)
 
 class Fish():
-    def __init__(self, image_url):
+    def __init__(self, image_url, mask_url):
         self.position = (10, 10)
         self.last_position = (0, 0)
         self.draw_position = (0, 0)
         self.direction = "left"
         self.orig_image = Image(image_url)
+        self.orig_mask = Image(mask_url).invert()
         self.draw_image = self.orig_image.copy()
+        self.draw_mask = self.orig_mask.copy()
 
-    def update(self):
+    def update(self, x, y, w, h):
         self.update_dir()
-        self.draw_image = self.draw_image#.resize()
 
+        self.position = (x, y)
+
+        self.draw_image = self.orig_image.resize(w=w, h=h)
+        self.draw_mask = self.orig_mask.resize(w=w, h=h)
+ 
         if self.direction == "left":
             self.draw_position = self.position
         
-        elif self.dirction == "right":
+        elif self.direction == "right":
             # TODO: setup offsets here for image when facing another direction
             self.draw_position = (self.position[0] + 0, self.position[1] + 0)
             pass
@@ -134,23 +147,25 @@ class Fish():
     def update_dir(self):
         hor_change = self.position[0] - self.last_position[0]
         # if the difference is more than 10 pixels
-        if abs(hor_change) > 10:
+        if abs(hor_change) > 5:
             # TODO: can optimise this slightly by checking if == left && horchange is positive
             # (so doesnt flip it every time over 10 pixels in the same direction)
             if self.direction == "left":
                 self.direction = "right"
                 self.draw_image = self.orig_image.flipHorizontal().copy()
+                self.draw_mask = self.orig_mask.flipHorizontal().copy()
             elif self.direction == "right":
                 self.direction = "left"
                 self.draw_image = self.orig_image.copy()
+                self.draw_mask = self.orig_mask.copy()
             self.last_position = self.position
 
     def draw(self, parent):
         #self.draw_image.save(canvas)
         print self.draw_image
         print self.draw_position
-        parent.canvas = parent.canvas.blit(self.draw_image, pos=self.draw_position)
- 
+        parent.canvas = parent.canvas.blit(self.draw_image, pos=self.draw_position, alphaMask=self.draw_mask)
+
 class Water():
     def __init__(self, parent):
         self.position = (0, 0)
@@ -187,19 +202,22 @@ if __name__ == '__main__':
     time.sleep(0.05) 
 
     fishtank = Tank(cam)
-    fish = Fish("images/fish1.png")
-    fishtank.fish_array.append(fish)
+    #fish = Fish("images/fish1.png", "images/alpha_fish.png")
+    #fishtank.fish_array.append(fish)
 
     print "Everything should be initalised..."
-    while not disp.isDone():
-        print "Looping..."
-        if disp.mouseLeft:
-            fishtank.running = False
-            break
-        fishtank.update()
-        fishtank.draw(disp)
-        #time.sleep(0.05)
-        #time.sleep(1)
+    try:
+        while not disp.isDone():
+            print "Looping..."
+            if disp.mouseLeft:
+                fishtank.running = False
+                break
+            fishtank.update()
+            fishtank.draw(disp)
+            #time.sleep(0.05)
+            #time.sleep(1)
+    finally:
+        fishtank.running = False
 
 
 """
